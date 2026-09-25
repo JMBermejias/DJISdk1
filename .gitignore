@@ -54,6 +54,7 @@ captures/
 *.keystore
 *.p12
 *.pem
+josekey*
 .env
 secrets.properties
 
