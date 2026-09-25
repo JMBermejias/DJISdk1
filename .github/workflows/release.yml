@@ -16,6 +16,7 @@ permissions:
 
 env:
   RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+  RELEASE_NAME: DJIProFly
 
 jobs:
   release:
@@ -97,8 +98,9 @@ jobs:
           set -euo pipefail
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release upload "$RELEASE_TAG" release/* --clobber
+            gh release edit "$RELEASE_TAG" --title "$RELEASE_NAME"
           else
-            gh release create "$RELEASE_TAG" release/* --verify-tag --title "$RELEASE_TAG" --generate-notes
+            gh release create "$RELEASE_TAG" release/* --verify-tag --title "$RELEASE_NAME" --generate-notes
           fi
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v4
