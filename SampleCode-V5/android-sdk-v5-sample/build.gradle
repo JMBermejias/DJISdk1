@@ -6,6 +6,10 @@ def configuredSecret = { name ->
     def value = project.findProperty(name)
     value == null || value.toString().isBlank() ? System.getenv(name) : value
 }
+def configuredRuntimeValue = { name ->
+    def value = System.getenv(name)
+    value == null || value.toString().isBlank() ? project.findProperty(name) : value
+}
 def releaseStoreFile = configuredSecret('STORE_FILE')
 def releaseStorePassword = configuredSecret('STORE_PASSWORD')
 def releaseKeyAlias = configuredSecret('KEY_ALIAS')
@@ -23,9 +27,9 @@ android {
         targetSdkVersion Integer.parseInt(project.ANDROID_TARGET_SDK_VERSION)
         versionCode 1
         versionName "0.1.0"
-        manifestPlaceholders["API_KEY"] = project.AIRCRAFT_API_KEY
-        manifestPlaceholders["GMAP_API_KEY"] = project.GMAP_API_KEY
-        manifestPlaceholders["MAPLIBRE_TOKEN"] = project.MAPLIBRE_TOKEN
+        manifestPlaceholders["API_KEY"] = configuredRuntimeValue('AIRCRAFT_API_KEY') ?: ''
+        manifestPlaceholders["GMAP_API_KEY"] = configuredRuntimeValue('GMAP_API_KEY') ?: ''
+        manifestPlaceholders["MAPLIBRE_TOKEN"] = configuredRuntimeValue('MAPLIBRE_TOKEN') ?: ''
         ndk {
             //noinspection ChromeOsAbiSupport
             abiFilters 'arm64-v8a'
