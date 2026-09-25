@@ -1,0 +1,34 @@
+name: Android CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Install Android packages
+        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.12'
+      - name: Run unit tests and lint
+        working-directory: SampleCode-V5/android-sdk-v5-as
+        run: ./gradlew --no-daemon :sample:testDebugUnitTest :sample:lintDebug
+      - name: Build UXSDK
+        working-directory: SampleCode-V5/android-sdk-v5-as
+        run: ./gradlew --no-daemon :uxsdk:assembleRelease

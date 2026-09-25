@@ -1,0 +1,65 @@
+name: Android Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Install Android packages
+        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.12'
+      - name: Decode release keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
+      - name: Build signed artifacts
+        working-directory: SampleCode-V5/android-sdk-v5-as
+        env:
+          STORE_FILE: ${{ runner.temp }}/release.jks
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew --no-daemon :sample:assembleRelease :sample:bundleRelease :uxsdk:assembleRelease
+      - name: Verify and collect artifacts
+        working-directory: SampleCode-V5/android-sdk-v5-as
+        run: |
+          set -eu
+          mkdir -p release
+          cp android-sdk-v5-sample/build/outputs/apk/release/*.apk release/
+          cp android-sdk-v5-sample/build/outputs/bundle/release/*.aab release/
+          cp android-sdk-v5-uxsdk/build/outputs/aar/*.aar release/
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose release/*.apk
+          sha256sum release/* > release/SHA256SUMS.txt
+      - name: Publish GitHub release
+        working-directory: SampleCode-V5/android-sdk-v5-as
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" release/* --verify-tag --title "$GITHUB_REF_NAME" --generate-notes
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release-${{ github.ref_name }}
+          path: SampleCode-V5/android-sdk-v5-as/release/*
+          if-no-files-found: error

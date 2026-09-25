@@ -1,0 +1,156 @@
+apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-kapt'
+
+def configuredSecret = { name ->
+    def value = project.findProperty(name)
+    value == null || value.toString().isBlank() ? System.getenv(name) : value
+}
+def releaseStoreFile = configuredSecret('STORE_FILE')
+def releaseStorePassword = configuredSecret('STORE_PASSWORD')
+def releaseKeyAlias = configuredSecret('KEY_ALIAS')
+def releaseKeyPassword = configuredSecret('KEY_PASSWORD')
+def hasReleaseSigning = [releaseStoreFile, releaseStorePassword, releaseKeyAlias, releaseKeyPassword]
+        .every { value -> value != null && !value.toString().isBlank() }
+
+android {
+    namespace "dji.sampleV5.aircraft"
+    compileSdkVersion Integer.parseInt(project.ANDROID_COMPILE_SDK_VERSION)
+
+    defaultConfig {
+        applicationId "com.dji.sampleV5.aircraft"
+        minSdkVersion Integer.parseInt(project.ANDROID_MIN_SDK_VERSION)
+        targetSdkVersion Integer.parseInt(project.ANDROID_TARGET_SDK_VERSION)
+        versionCode 1
+        versionName "0.1.0"
+        manifestPlaceholders["API_KEY"] = project.AIRCRAFT_API_KEY
+        manifestPlaceholders["GMAP_API_KEY"] = project.GMAP_API_KEY
+        manifestPlaceholders["MAPLIBRE_TOKEN"] = project.MAPLIBRE_TOKEN
+        ndk {
+            //noinspection ChromeOsAbiSupport
+            abiFilters 'arm64-v8a'
+        }
+    }
+
+    sourceSets {
+        release {
+            assets.exclude 'apk/app-debug.apk'
+        }
+    }
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            release {
+                storeFile file(releaseStoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
+        }
+        debug {
+            minifyEnabled false
+            shrinkResources false
+        }
+    }
+
+    packagingOptions {
+        // 因为mrtc库内部使用了NDK的c++_shared的编译参数
+        // 与其他库重复引用了，因此选其中一个即可
+        pickFirst 'lib/arm64-v8a/libc++_shared.so'
+        pickFirst 'lib/armeabi-v7a/libc++_shared.so'
+        jniLibs {
+            useLegacyPackaging true
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_17
+        freeCompilerArgs += ["-Xjvm-default=all"]
+    }
+
+    lint {
+        checkReleaseBuilds true
+        abortOnError true
+    }
+
+    packagingOptions {
+        doNotStrip "*/*/libconstants.so"
+        doNotStrip "*/*/libdji_innertools.so"
+        doNotStrip "*/*/libdjibase.so"
+        doNotStrip "*/*/libDJICSDKCommon.so"
+        doNotStrip "*/*/libDJIFlySafeCore-CSDK.so"
+        doNotStrip "*/*/libdjifs_jni-CSDK.so"
+        doNotStrip "*/*/libDJIRegister.so"
+        doNotStrip "*/*/libdjisdk_jni.so"
+        doNotStrip "*/*/libDJIUpgradeCore.so"
+        doNotStrip "*/*/libDJIUpgradeJNI.so"
+        doNotStrip "*/*/libDJIWaypointV2Core-CSDK.so"
+        doNotStrip "*/*/libdjiwpv2-CSDK.so"
+        doNotStrip "*/*/libFlightRecordEngine.so"
+        doNotStrip "*/*/libvideo-framing.so"
+        doNotStrip "*/*/libwaes.so"
+        doNotStrip "*/*/libagora-rtsa-sdk.so"
+        doNotStrip "*/*/libc++.so"
+        doNotStrip "*/*/libc++_shared.so"
+        doNotStrip "*/*/libmrtc_28181.so"
+        doNotStrip "*/*/libmrtc_agora.so"
+        doNotStrip "*/*/libmrtc_core.so"
+        doNotStrip "*/*/libmrtc_core_jni.so"
+        doNotStrip "*/*/libmrtc_data.so"
+        doNotStrip "*/*/libmrtc_log.so"
+        doNotStrip "*/*/libmrtc_onvif.so"
+        doNotStrip "*/*/libmrtc_rtmp.so"
+        doNotStrip "*/*/libmrtc_rtsp.so"
+    }
+
+    buildFeatures {
+        viewBinding true
+    }
+}
+
+dependencies {
+    /** <-----------------依赖MSDK--------------------> **/
+    compileOnly deps.aircraftProvided
+    implementation deps.aircraft
+    runtimeOnly deps.networkImp
+
+    /** <-----------------sample所需--------------------> **/
+    implementation project(':uxsdk')
+    implementation deps.appcompat
+    implementation deps.constraintLayout
+    implementation deps.aacCommon
+    implementation deps.aacRuntime
+    implementation deps.kotlinLib
+    implementation deps.ktxCore
+    implementation deps.ktxFrag
+    implementation deps.ktxNavigation
+    implementation deps.ktxNavigationUi
+    implementation deps.recyclerview
+    implementation deps.legacySupport
+    implementation deps.lifecycleViewModel
+    implementation deps.lifecycleLiveData
+    debugImplementation deps.leakcanary
+    implementation deps.glide
+    implementation deps.dynamicanimation
+    implementation deps.expandedit
+    implementation deps.rx3Kt
+    implementation deps.dom
+    kapt deps.glidecompiler
+    implementation deps.lynx
+    testImplementation deps.junit4
+}
